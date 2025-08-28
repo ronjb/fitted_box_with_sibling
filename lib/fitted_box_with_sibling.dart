@@ -353,12 +353,59 @@ class RenderFittedBoxWithSibling extends RenderBox
   @override
   @protected
   Size computeDryLayout(covariant BoxConstraints constraints) {
-    return _computeSize(constraints: constraints, layoutChild: ChildLayoutHelper.dryLayoutChild);
+    return _computeSize(
+      constraints: constraints,
+      layoutChild: ChildLayoutHelper.dryLayoutChild,
+    ).size;
   }
 
-  Size _computeSize({required BoxConstraints constraints, required ChildLayouter layoutChild}) {
+  @override
+  void performLayout() {
+    final constraints = this.constraints;
+    _hasVisualOverflow = false;
+
+    final result = _computeSize(
+      constraints: constraints,
+      layoutChild: ChildLayoutHelper.layoutChild,
+    );
+    size = result.size;
+    _boxRect = result.boxRect;
+    _siblingRect = result.siblingRect;
+
+    final resolvedAlignment = _resolvedAlignment;
+    var child = firstChild;
+    while (child != null) {
+      final childParentData = child.parentData! as StackParentData;
+
+      if (childParentData.isPositioned) {
+        throw UnimplementedError('Positioned children are not supported in FittedBoxWithSibling.');
+      } else if (identical(child, firstChild)) {
+        childParentData.offset =
+            resolvedAlignment.alongOffset(_boxRect!.size - child.size as Offset) +
+            Offset(_boxRect!.left, _boxRect!.top);
+      } else {
+        childParentData.offset =
+            resolvedAlignment.alongOffset(_siblingRect!.size - child.size as Offset) +
+            Offset(_siblingRect!.left, _siblingRect!.top);
+      }
+
+      assert(child.parentData == childParentData);
+      child = childParentData.nextSibling;
+    }
+
+    _clearPaintData();
+  }
+
+  ({Size size, Rect boxRect, Rect siblingRect}) _computeSize({
+    required BoxConstraints constraints,
+    required ChildLayouter layoutChild,
+  }) {
     if (childCount == 0) {
-      return constraints.biggest.isFinite ? constraints.biggest : constraints.smallest;
+      return (
+        size: constraints.biggest.isFinite ? constraints.biggest : constraints.smallest,
+        boxRect: Rect.zero,
+        siblingRect: Rect.zero,
+      );
     }
 
     late Rect boxRect;
@@ -402,11 +449,6 @@ class RenderFittedBoxWithSibling extends RenderBox
             : BoxConstraints.tight(siblingRect.size);
         layoutChild(child, siblingConstraints);
 
-        childParentData.offset = Offset(siblingRect.left, siblingRect.top);
-        if (kDebugMode) {
-          print('setting sibling offset to ${childParentData.offset}');
-        }
-
         if (childParentData.nextSibling != null) {
           throw FlutterError.fromParts(<DiagnosticsNode>[
             ErrorSummary('FittedBoxWithSibling can only have two children.'),
@@ -424,34 +466,11 @@ class RenderFittedBoxWithSibling extends RenderBox
 
     final size = boxRect.expandToInclude(siblingRect).size;
     assert(size.isFinite);
-    return size;
+    return (size: size, boxRect: boxRect, siblingRect: siblingRect);
   }
 
-  @override
-  void performLayout() {
-    final constraints = this.constraints;
-    _hasVisualOverflow = false;
-
-    size = _computeSize(constraints: constraints, layoutChild: ChildLayoutHelper.layoutChild);
-
-    final resolvedAlignment = _resolvedAlignment;
-    var child = firstChild;
-    while (child != null) {
-      final childParentData = child.parentData! as StackParentData;
-
-      if (!childParentData.isPositioned) {
-        childParentData.offset = resolvedAlignment.alongOffset(size - child.size as Offset);
-      } else {
-        throw UnimplementedError('Positioned children are not supported in FittedBoxWithSibling.');
-      }
-
-      assert(child.parentData == childParentData);
-      child = childParentData.nextSibling;
-    }
-
-    _clearPaintData();
-  }
-
+  Rect? _boxRect;
+  Rect? _siblingRect;
   bool? _hasVisualOverflow;
   Matrix4? _transform;
 
@@ -471,13 +490,13 @@ class RenderFittedBoxWithSibling extends RenderBox
     } else {
       final Alignment resolvedAlignment = _resolvedAlignment;
       final Size childSize = firstChild!.size;
-      final FittedSizes sizes = applyBoxFit(_fit, childSize, size);
+      final FittedSizes sizes = applyBoxFit(_fit, childSize, _boxRect!.size);
       final double scaleX = sizes.destination.width / sizes.source.width;
       final double scaleY = sizes.destination.height / sizes.source.height;
       final Rect sourceRect = resolvedAlignment.inscribe(sizes.source, Offset.zero & childSize);
       final Rect destinationRect = resolvedAlignment.inscribe(
         sizes.destination,
-        Offset.zero & size,
+        Offset.zero & _boxRect!.size,
       );
       _hasVisualOverflow =
           sourceRect.width < childSize.width || sourceRect.height < childSize.height;

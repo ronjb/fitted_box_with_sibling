@@ -52,13 +52,18 @@ class _MyHomePageState extends State<MyHomePage> {
               print('constraints=$constraints, boxSize=$boxSize');
             }
             return (
-              boxRect: Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight - 50),
-              siblingRect: Rect.fromLTWH(0, constraints.maxHeight - 50, constraints.maxWidth, 50),
+              boxRect: Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight - 100),
+              siblingRect: Rect.fromLTWH(0, constraints.maxHeight - 100, constraints.maxWidth, 100),
             );
           },
           children: [
             const Text('You have pushed the button this many times:'),
-            Text('$_counter', style: Theme.of(context).textTheme.headlineMedium),
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: Colors.yellow,
+              child: Text('$_counter', style: Theme.of(context).textTheme.headlineMedium),
+            ),
           ],
         ),
       ),
