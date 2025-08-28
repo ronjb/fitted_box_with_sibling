@@ -537,9 +537,6 @@ class RenderFittedBoxWithSibling extends RenderBox
       if (identical(child, firstChild)) {
         _paintFirstChildWithTransform(context, offset);
       } else {
-        if (kDebugMode) {
-          print('painting sibling at ${childParentData.offset} + $offset}');
-        }
         context.paintChild(child, childParentData.offset + offset);
       }
       child = childParentData.nextSibling;

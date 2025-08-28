@@ -52,8 +52,8 @@ class _MyHomePageState extends State<MyHomePage> {
               print('constraints=$constraints, boxSize=$boxSize');
             }
             return (
-              boxRect: Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight - 100),
-              siblingRect: Rect.fromLTWH(0, constraints.maxHeight - 100, constraints.maxWidth, 100),
+              boxRect: Rect.fromLTWH(0, 100, constraints.maxWidth, constraints.maxHeight - 100),
+              siblingRect: Rect.fromLTWH(0, 0, constraints.maxWidth, 100),
             );
           },
           children: [
