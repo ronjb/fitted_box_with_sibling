@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -202,11 +203,9 @@ class RenderFittedBoxWithSibling extends RenderBox
   Alignment get _resolvedAlignment => _resolvedAlignmentCache ??= alignment.resolve(textDirection);
   Alignment? _resolvedAlignmentCache;
 
-  bool? _hasVisualOverflow;
-  Matrix4? _transform;
-
   void _markNeedResolution() {
     _resolvedAlignmentCache = null;
+    _clearPaintData();
     markNeedsLayout();
   }
 
@@ -235,6 +234,7 @@ class RenderFittedBoxWithSibling extends RenderBox
   set stackFit(StackFit value) {
     if (_stackFit != value) {
       _stackFit = value;
+      _clearPaintData();
       markNeedsLayout();
     }
   }
@@ -244,42 +244,9 @@ class RenderFittedBoxWithSibling extends RenderBox
   set clipBehavior(Clip value) {
     if (value != _clipBehavior) {
       _clipBehavior = value;
+      _clearPaintData();
       markNeedsPaint();
       markNeedsSemanticsUpdate();
-    }
-  }
-
-  void _clearPaintData() {
-    _hasVisualOverflow = null;
-    _transform = null;
-  }
-
-  void _updatePaintData() {
-    if (_transform != null) {
-      return;
-    }
-
-    if (firstChild == null) {
-      _hasVisualOverflow = false;
-      _transform = Matrix4.identity();
-    } else {
-      final Alignment resolvedAlignment = _resolvedAlignment;
-      final Size childSize = firstChild!.size;
-      final FittedSizes sizes = applyBoxFit(_fit, childSize, size);
-      final double scaleX = sizes.destination.width / sizes.source.width;
-      final double scaleY = sizes.destination.height / sizes.source.height;
-      final Rect sourceRect = resolvedAlignment.inscribe(sizes.source, Offset.zero & childSize);
-      final Rect destinationRect = resolvedAlignment.inscribe(
-        sizes.destination,
-        Offset.zero & size,
-      );
-      _hasVisualOverflow =
-          sourceRect.width < childSize.width || sourceRect.height < childSize.height;
-      assert(scaleX.isFinite && scaleY.isFinite);
-      _transform = Matrix4.translationValues(destinationRect.left, destinationRect.top, 0.0)
-        ..scaleByDouble(scaleX, scaleY, 1.0, 1)
-        ..translateByDouble(-sourceRect.left, -sourceRect.top, 0, 1);
-      assert(_transform!.storage.every((double value) => value.isFinite));
     }
   }
 
@@ -288,6 +255,7 @@ class RenderFittedBoxWithSibling extends RenderBox
   set rectsForFittedBoxWithSibling(RectsForFittedBoxWithSibling value) {
     if (_rectForSibling != value) {
       _rectForSibling = value;
+      _clearPaintData();
       markNeedsLayout();
     }
   }
@@ -433,7 +401,11 @@ class RenderFittedBoxWithSibling extends RenderBox
             ? BoxConstraints.loose(siblingRect.size)
             : BoxConstraints.tight(siblingRect.size);
         layoutChild(child, siblingConstraints);
+
         childParentData.offset = Offset(siblingRect.left, siblingRect.top);
+        if (kDebugMode) {
+          print('setting sibling offset to ${childParentData.offset}');
+        }
 
         if (childParentData.nextSibling != null) {
           throw FlutterError.fromParts(<DiagnosticsNode>[
@@ -476,20 +448,92 @@ class RenderFittedBoxWithSibling extends RenderBox
       assert(child.parentData == childParentData);
       child = childParentData.nextSibling;
     }
+
+    _clearPaintData();
   }
 
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    return defaultHitTestChildren(result, position: position);
+  bool? _hasVisualOverflow;
+  Matrix4? _transform;
+
+  void _clearPaintData() {
+    _hasVisualOverflow = null;
+    _transform = null;
+  }
+
+  void _updatePaintData() {
+    if (_transform != null) {
+      return;
+    }
+
+    if (firstChild == null) {
+      _hasVisualOverflow = false;
+      _transform = Matrix4.identity();
+    } else {
+      final Alignment resolvedAlignment = _resolvedAlignment;
+      final Size childSize = firstChild!.size;
+      final FittedSizes sizes = applyBoxFit(_fit, childSize, size);
+      final double scaleX = sizes.destination.width / sizes.source.width;
+      final double scaleY = sizes.destination.height / sizes.source.height;
+      final Rect sourceRect = resolvedAlignment.inscribe(sizes.source, Offset.zero & childSize);
+      final Rect destinationRect = resolvedAlignment.inscribe(
+        sizes.destination,
+        Offset.zero & size,
+      );
+      _hasVisualOverflow =
+          sourceRect.width < childSize.width || sourceRect.height < childSize.height;
+      assert(scaleX.isFinite && scaleY.isFinite);
+      _transform = Matrix4.translationValues(destinationRect.left, destinationRect.top, 0.0)
+        ..scaleByDouble(scaleX, scaleY, 1.0, 1)
+        ..translateByDouble(-sourceRect.left, -sourceRect.top, 0, 1);
+      assert(_transform!.storage.every((double value) => value.isFinite));
+    }
+  }
+
+  void paintFirstChild(PaintingContext context, Offset offset) {
+    final RenderBox? child = firstChild;
+    if (child == null) {
+      return;
+    }
+    context.paintChild(child, offset);
+  }
+
+  TransformLayer? _paintFirstChildWithTransform(PaintingContext context, Offset offset) {
+    final Offset? childOffset = MatrixUtils.getAsTranslation(_transform!);
+    if (childOffset == null) {
+      return context.pushTransform(
+        needsCompositing,
+        offset,
+        _transform!,
+        paintFirstChild,
+        oldLayer: layer is TransformLayer ? layer! as TransformLayer : null,
+      );
+    } else {
+      paintFirstChild(context, offset + childOffset);
+    }
+    return null;
   }
 
   @protected
   void paintStack(PaintingContext context, Offset offset) {
-    defaultPaint(context, offset);
+    var child = firstChild;
+    while (child != null) {
+      final childParentData = child.parentData! as StackParentData;
+      if (identical(child, firstChild)) {
+        _paintFirstChildWithTransform(context, offset);
+      } else {
+        if (kDebugMode) {
+          print('painting sibling at ${childParentData.offset} + $offset}');
+        }
+        context.paintChild(child, childParentData.offset + offset);
+      }
+      child = childParentData.nextSibling;
+    }
   }
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    _updatePaintData();
+
     if (clipBehavior != Clip.none && _hasVisualOverflow == true) {
       _clipRectLayer.layer = context.pushClipRect(
         needsCompositing,
@@ -503,6 +547,12 @@ class RenderFittedBoxWithSibling extends RenderBox
       _clipRectLayer.layer = null;
       paintStack(context, offset);
     }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    _updatePaintData();
+    return defaultHitTestChildren(result, position: position);
   }
 
   final LayerHandle<ClipRectLayer> _clipRectLayer = LayerHandle<ClipRectLayer>();
