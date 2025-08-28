@@ -494,10 +494,7 @@ class RenderFittedBoxWithSibling extends RenderBox
       final double scaleX = sizes.destination.width / sizes.source.width;
       final double scaleY = sizes.destination.height / sizes.source.height;
       final Rect sourceRect = resolvedAlignment.inscribe(sizes.source, Offset.zero & childSize);
-      final Rect destinationRect = resolvedAlignment.inscribe(
-        sizes.destination,
-        Offset.zero & _boxRect!.size,
-      );
+      final Rect destinationRect = resolvedAlignment.inscribe(sizes.destination, _boxRect!);
       _hasVisualOverflow =
           sourceRect.width < childSize.width || sourceRect.height < childSize.height;
       assert(scaleX.isFinite && scaleY.isFinite);
