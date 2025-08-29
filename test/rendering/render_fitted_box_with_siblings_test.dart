@@ -92,25 +92,31 @@ void main() {
 
   void testFittedBoxWithTransformLayer() {
     _testLayerReuse<TransformLayer>(
-      RenderFittedBox(
+      RenderFittedBoxWithSiblings(
         fit: BoxFit.fill,
-        // Inject opacity under the clip to force compositing.
-        child: RenderRepaintBoundary(
-          child: RenderSizedBox(const Size(1, 1)),
-        ), // size doesn't matter
+        computeRects: (constraints, boxSize) => [
+          Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
+        ],
+        children: <RenderBox>[
+          // Inject opacity under the clip to force compositing.
+          RenderRepaintBoundary(child: RenderSizedBox(const Size(1, 1))),
+        ], // size doesn't matter
       ),
     );
   }
 
-  test('RenderFittedBox reuses ClipRectLayer', testFittedBoxWithClipRectLayer);
+  test(
+    'RenderFittedBoxWithSiblings reuses ClipRectLayer',
+    testFittedBoxWithClipRectLayer,
+  );
 
   test(
-    'RenderFittedBox reuses TransformLayer',
+    'RenderFittedBoxWithSiblings reuses TransformLayer',
     testFittedBoxWithTransformLayer,
   );
 
-  test('RenderFittedBox switches between ClipRectLayer and TransformLayer, '
-      'and reuses them', () {
+  test('RenderFittedBoxWithSiblings switches between ClipRectLayer and '
+      'TransformLayer, and reuses them', () {
     testFittedBoxWithClipRectLayer();
 
     // clip -> transform
@@ -119,23 +125,32 @@ void main() {
     testFittedBoxWithClipRectLayer();
   });
 
-  test('RenderFittedBox respects clipBehavior', () {
+  test('RenderFittedBoxWithSiblings respects clipBehavior', () {
     const viewport = BoxConstraints(maxHeight: 100.0, maxWidth: 100.0);
     for (final clip in <Clip?>[null, ...Clip.values]) {
       final context = TestClipPaintingContext();
-      final RenderFittedBox box;
+      final RenderFittedBoxWithSiblings box;
       switch (clip) {
         case Clip.none:
         case Clip.hardEdge:
         case Clip.antiAlias:
         case Clip.antiAliasWithSaveLayer:
-          box = RenderFittedBox(
-            child: box200x200,
+          box = RenderFittedBoxWithSiblings(
+            computeRects: (constraints, boxSize) => [
+              Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
+            ],
+            children: <RenderBox>[box200x200],
             fit: BoxFit.none,
             clipBehavior: clip!,
           );
         case null:
-          box = RenderFittedBox(child: box200x200, fit: BoxFit.none);
+          box = RenderFittedBoxWithSiblings(
+            computeRects: (constraints, boxSize) => [
+              Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
+            ],
+            children: <RenderBox>[box200x200],
+            fit: BoxFit.none,
+          );
       }
       layout(
         box,
@@ -149,43 +164,52 @@ void main() {
     }
   });
 
-  test('Stack can layout with top, right, bottom, left 0.0', () {
-    final RenderBox size = RenderConstrainedBox(
-      additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-    );
+  test(
+    'RenderFittedBoxWithSiblings can layout with top, right, bottom, left 0.0',
+    () {
+      final RenderBox size = RenderConstrainedBox(
+        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
+      );
 
-    final RenderBox red = RenderDecoratedBox(
-      decoration: const BoxDecoration(color: Color(0xFFFF0000)),
-      child: size,
-    );
+      final RenderBox red = RenderDecoratedBox(
+        decoration: const BoxDecoration(color: Color(0xFFFF0000)),
+        child: size,
+      );
 
-    final RenderBox green = RenderDecoratedBox(
-      decoration: const BoxDecoration(color: Color(0xFF00FF00)),
-    );
+      final RenderBox green = RenderDecoratedBox(
+        decoration: const BoxDecoration(color: Color(0xFF00FF00)),
+      );
 
-    final RenderBox stack = RenderStack(
-      textDirection: TextDirection.ltr,
-      children: <RenderBox>[red, green],
-    );
-    green.parentData! as StackParentData
-      ..top = 0.0
-      ..right = 0.0
-      ..bottom = 0.0
-      ..left = 0.0;
+      final RenderBox stack = RenderFittedBoxWithSiblings(
+        computeRects: (constraints, boxSize) {
+          return [
+            const Rect.fromLTWH(0, 0, 100.0, 100.0),
+            const Rect.fromLTWH(0, 0, 100.0, 100.0),
+          ];
+        },
+        textDirection: TextDirection.ltr,
+        children: <RenderBox>[red, green],
+      );
+      // green.parentData! as StackParentData
+      //   ..top = 0.0
+      //   ..right = 0.0
+      //   ..bottom = 0.0
+      //   ..left = 0.0;
 
-    layout(stack, constraints: const BoxConstraints());
+      layout(stack, constraints: const BoxConstraints());
 
-    expect(stack.size.width, equals(100.0));
-    expect(stack.size.height, equals(100.0));
+      expect(stack.size.width, equals(100.0));
+      expect(stack.size.height, equals(100.0));
 
-    expect(red.size.width, equals(100.0));
-    expect(red.size.height, equals(100.0));
+      expect(red.size.width, equals(100.0));
+      expect(red.size.height, equals(100.0));
 
-    expect(green.size.width, equals(100.0));
-    expect(green.size.height, equals(100.0));
-  });
+      expect(green.size.width, equals(100.0));
+      expect(green.size.height, equals(100.0));
+    },
+  );
 
-  test('Stack can layout with no children', () {
+  test('RenderFittedBoxWithSiblings can layout with no children', () {
     final RenderBox stack = RenderStack(
       textDirection: TextDirection.ltr,
       children: <RenderBox>[],
@@ -197,7 +221,7 @@ void main() {
     expect(stack.size.height, equals(100.0));
   });
 
-  test('Stack has correct clipBehavior', () {
+  test('RenderFittedBoxWithSiblings has correct clipBehavior', () {
     const viewport = BoxConstraints(maxHeight: 100.0, maxWidth: 100.0);
 
     for (final clip in <Clip?>[null, ...Clip.values]) {
@@ -242,93 +266,7 @@ void main() {
     }
   });
 
-  group('RenderIndexedStack', () {
-    test('visitChildrenForSemantics only visits displayed child', () {
-      final RenderBox child1 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-      final RenderBox child2 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-      final RenderBox child3 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-      final RenderBox stack = RenderIndexedStack(
-        index: 1,
-        textDirection: TextDirection.ltr,
-        children: <RenderBox>[child1, child2, child3],
-      );
-
-      final visitedChildren = <RenderObject>[];
-      void visitor(RenderObject child) {
-        visitedChildren.add(child);
-      }
-
-      layout(stack);
-      stack.visitChildrenForSemantics(visitor);
-
-      expect(visitedChildren, hasLength(1));
-      expect(visitedChildren.first, child2);
-    });
-
-    test('debugDescribeChildren marks invisible children as offstage', () {
-      final RenderBox child1 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-      final RenderBox child2 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-      final RenderBox child3 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-
-      final RenderBox stack = RenderIndexedStack(
-        index: 2,
-        children: <RenderBox>[child1, child2, child3],
-      );
-
-      final diagnosticNodes = stack.debugDescribeChildren();
-
-      expect(diagnosticNodes[0].name, 'child 1');
-      expect(diagnosticNodes[0].style, DiagnosticsTreeStyle.offstage);
-
-      expect(diagnosticNodes[1].name, 'child 2');
-      expect(diagnosticNodes[1].style, DiagnosticsTreeStyle.offstage);
-
-      expect(diagnosticNodes[2].name, 'child 3');
-      expect(diagnosticNodes[2].style, DiagnosticsTreeStyle.sparse);
-    });
-
-    test('debugDescribeChildren handles a null index', () {
-      final RenderBox child1 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-      final RenderBox child2 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-      final RenderBox child3 = RenderConstrainedBox(
-        additionalConstraints: BoxConstraints.tight(const Size(100.0, 100.0)),
-      );
-
-      final RenderBox stack = RenderIndexedStack(
-        index: null,
-        children: <RenderBox>[child1, child2, child3],
-      );
-
-      final diagnosticNodes = stack.debugDescribeChildren();
-
-      expect(diagnosticNodes[0].name, 'child 1');
-      expect(diagnosticNodes[0].style, DiagnosticsTreeStyle.offstage);
-
-      expect(diagnosticNodes[1].name, 'child 2');
-      expect(diagnosticNodes[1].style, DiagnosticsTreeStyle.offstage);
-
-      expect(diagnosticNodes[2].name, 'child 3');
-      expect(diagnosticNodes[2].style, DiagnosticsTreeStyle.offstage);
-    });
-  });
-
-  test('Stack in Flex can layout with no children', () {
+  test('RenderFittedBoxWithSiblings in Flex can layout with no children', () {
     // Render an empty Stack in a Flex
     final flex = RenderFlex(
       textDirection: TextDirection.ltr,
@@ -364,9 +302,7 @@ void _testLayerReuse<L extends Layer>(RenderBox renderObject) {
     phase: EnginePhase.paint,
     constraints: BoxConstraints.tight(const Size(10, 10)),
   );
-  final Layer? layer = renderObject is ContainerRenderObjectMixin
-      ? (renderObject as ContainerRenderObjectMixin).firstChild?.debugLayer
-      : renderObject.debugLayer;
+  final Layer? layer = renderObject.debugLayer;
   expect(layer, isA<L>());
   expect(layer, isNotNull);
 

@@ -449,17 +449,23 @@ class RenderFittedBoxWithSiblings extends RenderBox
   }
 
   @protected
-  void paintFittedBoxWithSiblings(PaintingContext context, Offset offset) {
+  TransformLayer? _paintFittedBoxWithSiblings(
+    PaintingContext context,
+    Offset offset,
+  ) {
+    TransformLayer? layer;
     var child = firstChild;
     while (child != null) {
       final childParentData = child.parentData! as StackParentData;
       if (identical(child, firstChild)) {
-        _paintFirstChildWithTransform(context, offset);
+        layer = _paintFirstChildWithTransform(context, offset);
       } else {
         context.paintChild(child, childParentData.offset + offset);
       }
       child = childParentData.nextSibling;
     }
+
+    return layer;
   }
 
   @override
@@ -470,17 +476,16 @@ class RenderFittedBoxWithSiblings extends RenderBox
     _updatePaintData();
 
     if (clipBehavior != Clip.none && _hasVisualOverflow == true) {
-      _clipRectLayer.layer = context.pushClipRect(
+      layer = context.pushClipRect(
         needsCompositing,
         offset,
         Offset.zero & size,
-        paintFittedBoxWithSiblings,
+        _paintFittedBoxWithSiblings,
         clipBehavior: clipBehavior,
-        oldLayer: _clipRectLayer.layer,
+        oldLayer: layer is ClipRectLayer ? layer! as ClipRectLayer : null,
       );
     } else {
-      _clipRectLayer.layer = null;
-      paintFittedBoxWithSiblings(context, offset);
+      layer = _paintFittedBoxWithSiblings(context, offset);
     }
   }
 
@@ -547,15 +552,6 @@ class RenderFittedBoxWithSiblings extends RenderBox
     } else {
       return super.applyPaintTransform(child, transform);
     }
-  }
-
-  final LayerHandle<ClipRectLayer> _clipRectLayer =
-      LayerHandle<ClipRectLayer>();
-
-  @override
-  void dispose() {
-    _clipRectLayer.layer = null;
-    super.dispose();
   }
 
   @override
