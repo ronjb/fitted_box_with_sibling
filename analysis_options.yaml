@@ -1,4 +1,21 @@
-include: package:flutter_lints/flutter.yaml
+# Static Analyzer Options
+#
+# For additional info see: https://dart.dev/tools/analysis
+#
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+include: package:flutter_lints_plus/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+  errors:
+    missing_required_param: error
+    missing_return: error
+    record_literal_one_positional_no_trailing_comma: error
+  
+# Linter rules (see: https://dart.dev/tools/linter-rules)
+linter:
+  rules:

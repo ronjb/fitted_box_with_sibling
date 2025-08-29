@@ -2,38 +2,51 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-/// Signature for a function that given the constraints and [boxSize] returns
-/// the rects for the fitted box and its sibling.
-typedef RectsForFittedBoxWithSibling =
-    ({Rect boxRect, Rect siblingRect}) Function(BoxConstraints constraints, Size boxSize);
+/// Signature for a function that given the [constraints] and [boxSize],
+/// returns the rects for the fitted box and its siblings.
+typedef RectsForFittedBoxWithSiblings =
+    List<Rect> Function(BoxConstraints constraints, Size boxSize);
 
 /// Scales and positions the first child (the "box") within itself according
-/// to [fit], similar to [FittedBox]. The positioning of the box and the second
-/// child is determined by [rectsForFittedBoxWithSibling], which is given the
-/// overall constraints and the size returned by calling `layout` on the first
-/// child (the "box").
+/// to [fit], similar to [FittedBox]. The positioning of the box and its
+/// siblings is determined by [computeRects], which is given the overall
+/// constraints and the size returned by calling `layout` on the first child
+/// (the "box").
+///
+/// [computeRects] must return the same number of rects as the number of
+/// children. The first is the rect for the box, and the rest are the rects
+/// for the siblings.
 ///
 /// See also:
 ///
 /// * [FittedBox], which scales and positions its child within itself according
 ///   to [fit] and [alignment].
 /// * The [catalog of layout widgets](https://flutter.dev/widgets/layout/).
-class FittedBoxWithSibling extends MultiChildRenderObjectWidget {
-  const FittedBoxWithSibling({
+class FittedBoxWithSiblings extends MultiChildRenderObjectWidget {
+  /// Creates a widget that scales and positions its first child (the "box")
+  /// within itself according to [fit], similar to [FittedBox]. The positioning
+  /// of the box and its siblings is determined by [computeRects], which is
+  /// given the overall constraints and the size returned by calling `layout`
+  /// on the first child (the "box").
+  ///
+  /// [computeRects] must return the same number of rects as the number of
+  /// children. The first is the rect for the box, and the rest are the rects
+  /// for the siblings.
+  const FittedBoxWithSiblings({
     super.key,
     this.fit = BoxFit.contain,
     this.alignment = Alignment.center,
     this.textDirection,
     this.stackFit = StackFit.loose,
     this.clipBehavior = Clip.none,
-    required this.rectsForFittedBoxWithSibling,
+    required this.computeRects,
     super.children,
   });
 
   /// How to inscribe the first child into the space allocated during layout.
   final BoxFit fit;
 
-  /// How to align the first child within the bounds alloted to it.
+  /// How to align the first child (the "box") within the bounds alloted to it.
   ///
   /// An alignment of (-1.0, -1.0) aligns the child to the top-left corner of
   /// the bounds. An alignment of (1.0, 0.0) aligns the child to the middle
@@ -56,7 +69,7 @@ class FittedBoxWithSibling extends MultiChildRenderObjectWidget {
 
   /// How to size the first child (i.e. the "box").
   ///
-  /// The constraints passed into the [FittedBoxWithSibling] from its parent
+  /// The constraints passed into the [FittedBoxWithSiblings] from its parent
   /// are either loosened ([StackFit.loose]) or tightened to their biggest size
   /// ([StackFit.expand]).
   final StackFit stackFit;
@@ -66,34 +79,37 @@ class FittedBoxWithSibling extends MultiChildRenderObjectWidget {
   /// Defaults to [Clip.none].
   final Clip clipBehavior;
 
-  /// A function that returns the rects for the fitted bix and its sibling.
-  final RectsForFittedBoxWithSibling rectsForFittedBoxWithSibling;
+  /// A function which is given the overall constraints and the size returned
+  /// by calling `layout` on the first child (the "box"), and must return the
+  /// rects for the fitted box and its siblings.
+  final RectsForFittedBoxWithSiblings computeRects;
 
   @override
-  RenderFittedBoxWithSibling createRenderObject(BuildContext context) {
+  RenderFittedBoxWithSiblings createRenderObject(BuildContext context) {
     assert(_debugCheckHasDirectionality(context));
-    _checkHasTwoChildren();
-    return RenderFittedBoxWithSibling(
+    return RenderFittedBoxWithSiblings(
       fit: fit,
       alignment: alignment,
       textDirection: textDirection ?? Directionality.maybeOf(context),
       stackFit: stackFit,
       clipBehavior: clipBehavior,
-      rectsForFittedBoxWithSibling: rectsForFittedBoxWithSibling,
+      computeRects: computeRects,
     );
   }
 
   @override
-  void updateRenderObject(BuildContext context, RenderFittedBoxWithSibling renderObject) {
+  void updateRenderObject(
+    BuildContext context,
+    RenderFittedBoxWithSiblings renderObject,
+  ) {
     assert(_debugCheckHasDirectionality(context));
-    _checkHasTwoChildren();
     renderObject
       ..fit = fit
       ..alignment = alignment
       ..textDirection = textDirection ?? Directionality.maybeOf(context)
       ..stackFit = stackFit
       ..clipBehavior = clipBehavior
-      ..rectsForFittedBoxWithSibling = rectsForFittedBoxWithSibling;
+      ..computeRects = computeRects;
   }
 
   @override
@@ -102,9 +118,21 @@ class FittedBoxWithSibling extends MultiChildRenderObjectWidget {
     properties
       ..add(EnumProperty<BoxFit>('fit', fit))
       ..add(DiagnosticsProperty<AlignmentGeometry>('alignment', alignment))
-      ..add(EnumProperty<TextDirection>('textDirection', textDirection, defaultValue: null))
+      ..add(
+        EnumProperty<TextDirection>(
+          'textDirection',
+          textDirection,
+          defaultValue: null,
+        ),
+      )
       ..add(EnumProperty<StackFit>('stackFit', stackFit))
-      ..add(EnumProperty<Clip>('clipBehavior', clipBehavior, defaultValue: Clip.hardEdge));
+      ..add(
+        EnumProperty<Clip>(
+          'clipBehavior',
+          clipBehavior,
+          defaultValue: Clip.none,
+        ),
+      );
   }
 
   bool _debugCheckHasDirectionality(BuildContext context) {
@@ -114,51 +142,40 @@ class FittedBoxWithSibling extends MultiChildRenderObjectWidget {
           context,
           why: "to resolve the 'alignment' argument",
           hint: alignment == AlignmentDirectional.topStart
-              ? "The default value for 'alignment' is AlignmentDirectional.topStart, which requires a text direction."
+              ? "The default value for 'alignment' is "
+                    'AlignmentDirectional.topStart, which requires a text '
+                    'direction.'
               : null,
           alternative:
-              "Instead of providing a Directionality widget, another solution would be passing a non-directional 'alignment', or an explicit 'textDirection', to the $runtimeType.",
+              'Instead of providing a Directionality widget, another solution '
+              "would be passing a non-directional 'alignment', or an explicit "
+              "'textDirection', to the $runtimeType.",
         ),
       );
     }
     return true;
   }
-
-  bool _checkHasTwoChildren() {
-    if (children.length != 2) {
-      throw FlutterError.fromParts(<DiagnosticsNode>[
-        ErrorSummary('FittedBoxWithSibling must have exactly two children.'),
-        ErrorDescription(
-          'The FittedBoxWithSibling widget is designed to have exactly two children: '
-          'the first child is the box to be fitted, and the second child is the sibling '
-          'whose position is determined by rectsForFittedBoxWithSibling.',
-        ),
-        ErrorHint('The number of children provided was ${children.length}.'),
-      ]);
-    }
-    return true;
-  }
 }
 
-/// The render object for [FittedBoxWithSibling].
-class RenderFittedBoxWithSibling extends RenderBox
+/// The render object for [FittedBoxWithSiblings].
+class RenderFittedBoxWithSiblings extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, StackParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, StackParentData> {
-  RenderFittedBoxWithSibling({
+  RenderFittedBoxWithSiblings({
     List<RenderBox>? children,
     BoxFit fit = BoxFit.contain,
     AlignmentGeometry alignment = AlignmentDirectional.center,
     TextDirection? textDirection,
     StackFit stackFit = StackFit.loose,
     Clip clipBehavior = Clip.none,
-    required RectsForFittedBoxWithSibling rectsForFittedBoxWithSibling,
+    required RectsForFittedBoxWithSiblings computeRects,
   }) : _fit = fit,
        _alignment = alignment,
        _textDirection = textDirection,
        _stackFit = stackFit,
        _clipBehavior = clipBehavior,
-       _rectForSibling = rectsForFittedBoxWithSibling {
+       _rectForSibling = computeRects {
     addAll(children);
   }
 
@@ -200,7 +217,8 @@ class RenderFittedBoxWithSibling extends RenderBox
     }
   }
 
-  Alignment get _resolvedAlignment => _resolvedAlignmentCache ??= alignment.resolve(textDirection);
+  Alignment get _resolvedAlignment =>
+      _resolvedAlignmentCache ??= alignment.resolve(textDirection);
   Alignment? _resolvedAlignmentCache;
 
   void _markNeedResolution() {
@@ -250,9 +268,9 @@ class RenderFittedBoxWithSibling extends RenderBox
     }
   }
 
-  RectsForFittedBoxWithSibling get rectsForFittedBoxWithSibling => _rectForSibling;
-  RectsForFittedBoxWithSibling _rectForSibling;
-  set rectsForFittedBoxWithSibling(RectsForFittedBoxWithSibling value) {
+  RectsForFittedBoxWithSiblings get computeRects => _rectForSibling;
+  RectsForFittedBoxWithSiblings _rectForSibling;
+  set computeRects(RectsForFittedBoxWithSiblings value) {
     if (_rectForSibling != value) {
       _rectForSibling = value;
       _clearPaintData();
@@ -280,22 +298,34 @@ class RenderFittedBoxWithSibling extends RenderBox
 
   @override
   double computeMinIntrinsicWidth(double height) {
-    return getIntrinsicDimension(firstChild, (child) => child.getMinIntrinsicWidth(height));
+    return getIntrinsicDimension(
+      firstChild,
+      (child) => child.getMinIntrinsicWidth(height),
+    );
   }
 
   @override
   double computeMaxIntrinsicWidth(double height) {
-    return getIntrinsicDimension(firstChild, (child) => child.getMaxIntrinsicWidth(height));
+    return getIntrinsicDimension(
+      firstChild,
+      (child) => child.getMaxIntrinsicWidth(height),
+    );
   }
 
   @override
   double computeMinIntrinsicHeight(double width) {
-    return getIntrinsicDimension(firstChild, (child) => child.getMinIntrinsicHeight(width));
+    return getIntrinsicDimension(
+      firstChild,
+      (child) => child.getMinIntrinsicHeight(width),
+    );
   }
 
   @override
   double computeMaxIntrinsicHeight(double width) {
-    return getIntrinsicDimension(firstChild, (child) => child.getMaxIntrinsicHeight(width));
+    return getIntrinsicDimension(
+      firstChild,
+      (child) => child.getMaxIntrinsicHeight(width),
+    );
   }
 
   @override
@@ -323,13 +353,20 @@ class RenderFittedBoxWithSibling extends RenderBox
       StackParentData(:final double bottom?) =>
         stackSize.height - bottom - child.getDryLayout(childConstraints).height,
       StackParentData() =>
-        alignment.alongOffset(stackSize - child.getDryLayout(childConstraints) as Offset).dy,
+        alignment
+            .alongOffset(
+              stackSize - child.getDryLayout(childConstraints) as Offset,
+            )
+            .dy,
     };
     return baselineOffset + y;
   }
 
   @override
-  double? computeDryBaseline(BoxConstraints constraints, TextBaseline baseline) {
+  double? computeDryBaseline(
+    BoxConstraints constraints,
+    TextBaseline baseline,
+  ) {
     final nonPositionedChildConstraints = switch (stackFit) {
       StackFit.loose => constraints.loosen(),
       StackFit.expand => BoxConstraints.tight(constraints.biggest),
@@ -343,7 +380,13 @@ class RenderFittedBoxWithSibling extends RenderBox
     for (var child = firstChild; child != null; child = childAfter(child)) {
       baselineOffset = baselineOffset.minOf(
         BaselineOffset(
-          _baselineForChild(child, size, nonPositionedChildConstraints, alignment, baseline),
+          _baselineForChild(
+            child,
+            size,
+            nonPositionedChildConstraints,
+            alignment,
+            baseline,
+          ),
         ),
       );
     }
@@ -369,47 +412,61 @@ class RenderFittedBoxWithSibling extends RenderBox
       layoutChild: ChildLayoutHelper.layoutChild,
     );
     size = result.size;
-    _boxRect = result.boxRect;
-    _siblingRect = result.siblingRect;
+    _rects = result.rects;
 
     final resolvedAlignment = _resolvedAlignment;
     var child = firstChild;
+    var i = 0;
     while (child != null) {
       final childParentData = child.parentData! as StackParentData;
-
       if (childParentData.isPositioned) {
-        throw UnimplementedError('Positioned children are not supported in FittedBoxWithSibling.');
-      } else if (identical(child, firstChild)) {
+        throw UnimplementedError(
+          'Positioned children are not supported in FittedBoxWithSiblings.',
+        );
+      } else if (i < _rects.length) {
+        final rect = _rects[i];
         childParentData.offset =
-            resolvedAlignment.alongOffset(_boxRect!.size - child.size as Offset) +
-            Offset(_boxRect!.left, _boxRect!.top);
+            resolvedAlignment.alongOffset(rect.size - child.size as Offset) +
+            Offset(rect.left, rect.top);
       } else {
-        childParentData.offset =
-            resolvedAlignment.alongOffset(_siblingRect!.size - child.size as Offset) +
-            Offset(_siblingRect!.left, _siblingRect!.top);
+        throw FlutterError.fromParts(<DiagnosticsNode>[
+          ErrorSummary(
+            'The FittedBoxWithSiblings computeRects function must return a '
+            'rect for every child.',
+          ),
+          ErrorDescription(
+            'The number of rects returned by the computeRects function must '
+            'match the number of the FittedBoxWithSiblings children.',
+          ),
+          ErrorHint(
+            'The computeRects function returned ${_rects.length} rects, '
+            'but there are $childCount children.',
+          ),
+        ]);
       }
 
       assert(child.parentData == childParentData);
       child = childParentData.nextSibling;
+      i++;
     }
 
     _clearPaintData();
   }
 
-  ({Size size, Rect boxRect, Rect siblingRect}) _computeSize({
+  ({Size size, List<Rect> rects}) _computeSize({
     required BoxConstraints constraints,
     required ChildLayouter layoutChild,
   }) {
     if (childCount == 0) {
       return (
-        size: constraints.biggest.isFinite ? constraints.biggest : constraints.smallest,
-        boxRect: Rect.zero,
-        siblingRect: Rect.zero,
+        size: constraints.biggest.isFinite
+            ? constraints.biggest
+            : constraints.smallest,
+        rects: [],
       );
     }
 
-    late Rect boxRect;
-    late Rect siblingRect;
+    late List<Rect> rects;
 
     final nonPositionedConstraints = switch (stackFit) {
       StackFit.loose => constraints.loosen(),
@@ -418,59 +475,49 @@ class RenderFittedBoxWithSibling extends RenderBox
     };
 
     var child = firstChild;
+    var i = 0;
     while (child != null) {
       final childParentData = child.parentData! as StackParentData;
 
       if (childParentData.isPositioned) {
-        throw UnimplementedError('Positioned children are not supported in FittedBoxWithSibling.');
+        throw UnimplementedError(
+          'Positioned children are not supported in FittedBoxWithSiblings.',
+        );
       } else if (identical(child, firstChild)) {
         final childSize = layoutChild(child, const BoxConstraints());
-        final result = rectsForFittedBoxWithSibling(nonPositionedConstraints, childSize);
-        boxRect = result.boxRect;
-        siblingRect = result.siblingRect;
+        rects = computeRects(nonPositionedConstraints, childSize);
 
-        if (!boxRect.isFinite || !siblingRect.isFinite) {
+        if (!rects.every((r) => r.isFinite)) {
           throw FlutterError.fromParts(<DiagnosticsNode>[
-            ErrorSummary('The rects returned by rectsForFittedBoxWithSibling must be finite.'),
+            ErrorSummary('The rects returned by computeRects must be finite.'),
             ErrorDescription(
               'The rects returned were:\n'
-              'boxRect: $boxRect\n'
-              'siblingRect: $siblingRect\n'
-              'The constraints passed to rectsForFittedBoxWithSibling were:\n'
+              '$rects\n'
+              'The constraints passed to computeRects were:\n'
               '$nonPositionedConstraints\n'
-              'The size of the first child (the box) passed to rectsForFittedBoxWithSibling was:\n'
+              'The boxSize passed to computeRects was:\n'
               '$childSize',
             ),
           ]);
         }
       } else {
+        final rectSize = i < rects.length ? rects[i].size : Size.zero;
         final siblingConstraints = stackFit == StackFit.loose
-            ? BoxConstraints.loose(siblingRect.size)
-            : BoxConstraints.tight(siblingRect.size);
+            ? BoxConstraints.loose(rectSize)
+            : BoxConstraints.tight(rectSize);
         layoutChild(child, siblingConstraints);
-
-        if (childParentData.nextSibling != null) {
-          throw FlutterError.fromParts(<DiagnosticsNode>[
-            ErrorSummary('FittedBoxWithSibling can only have two children.'),
-            ErrorDescription(
-              'The FittedBoxWithSibling widget is designed to have exactly two children: '
-              'the first child is the box to be fitted, and the second child is the sibling.',
-            ),
-            ErrorHint('The number of children provided was greater than two.'),
-          ]);
-        }
       }
 
       child = childParentData.nextSibling;
+      i++;
     }
 
-    final size = boxRect.expandToInclude(siblingRect).size;
+    final size = rects.isEmpty ? Size.zero : rects.boundingRect.size;
     assert(size.isFinite);
-    return (size: size, boxRect: boxRect, siblingRect: siblingRect);
+    return (size: size, rects: rects);
   }
 
-  Rect? _boxRect;
-  Rect? _siblingRect;
+  var _rects = <Rect>[];
   bool? _hasVisualOverflow;
   Matrix4? _transform;
 
@@ -488,33 +535,49 @@ class RenderFittedBoxWithSibling extends RenderBox
       _hasVisualOverflow = false;
       _transform = Matrix4.identity();
     } else {
-      final Alignment resolvedAlignment = _resolvedAlignment;
-      final Size childSize = firstChild!.size;
-      final FittedSizes sizes = applyBoxFit(_fit, childSize, _boxRect!.size);
-      final double scaleX = sizes.destination.width / sizes.source.width;
-      final double scaleY = sizes.destination.height / sizes.source.height;
-      final Rect sourceRect = resolvedAlignment.inscribe(sizes.source, Offset.zero & childSize);
-      final Rect destinationRect = resolvedAlignment.inscribe(sizes.destination, _boxRect!);
+      final boxRect = _rects.isNotEmpty ? _rects[0] : Rect.zero;
+      final resolvedAlignment = _resolvedAlignment;
+      final childSize = firstChild!.size;
+      final sizes = applyBoxFit(_fit, childSize, boxRect.size);
+      final scaleX = sizes.destination.width / sizes.source.width;
+      final scaleY = sizes.destination.height / sizes.source.height;
+      final sourceRect = resolvedAlignment.inscribe(
+        sizes.source,
+        Offset.zero & childSize,
+      );
+      final destinationRect = resolvedAlignment.inscribe(
+        sizes.destination,
+        boxRect,
+      );
       _hasVisualOverflow =
-          sourceRect.width < childSize.width || sourceRect.height < childSize.height;
+          sourceRect.width < childSize.width ||
+          sourceRect.height < childSize.height;
       assert(scaleX.isFinite && scaleY.isFinite);
-      _transform = Matrix4.translationValues(destinationRect.left, destinationRect.top, 0.0)
-        ..scaleByDouble(scaleX, scaleY, 1.0, 1)
-        ..translateByDouble(-sourceRect.left, -sourceRect.top, 0, 1);
-      assert(_transform!.storage.every((double value) => value.isFinite));
+      _transform =
+          Matrix4.translationValues(
+              destinationRect.left,
+              destinationRect.top,
+              0.0,
+            )
+            ..scaleByDouble(scaleX, scaleY, 1.0, 1)
+            ..translateByDouble(-sourceRect.left, -sourceRect.top, 0, 1);
+      assert(_transform!.storage.every((value) => value.isFinite));
     }
   }
 
   void paintFirstChild(PaintingContext context, Offset offset) {
-    final RenderBox? child = firstChild;
+    final child = firstChild;
     if (child == null) {
       return;
     }
     context.paintChild(child, offset);
   }
 
-  TransformLayer? _paintFirstChildWithTransform(PaintingContext context, Offset offset) {
-    final Offset? childOffset = MatrixUtils.getAsTranslation(_transform!);
+  TransformLayer? _paintFirstChildWithTransform(
+    PaintingContext context,
+    Offset offset,
+  ) {
+    final childOffset = MatrixUtils.getAsTranslation(_transform!);
     if (childOffset == null) {
       return context.pushTransform(
         needsCompositing,
@@ -568,7 +631,8 @@ class RenderFittedBoxWithSibling extends RenderBox
     return defaultHitTestChildren(result, position: position);
   }
 
-  final LayerHandle<ClipRectLayer> _clipRectLayer = LayerHandle<ClipRectLayer>();
+  final LayerHandle<ClipRectLayer> _clipRectLayer =
+      LayerHandle<ClipRectLayer>();
 
   @override
   void dispose() {
@@ -596,6 +660,31 @@ class RenderFittedBoxWithSibling extends RenderBox
       ..add(DiagnosticsProperty<AlignmentGeometry>('alignment', alignment))
       ..add(EnumProperty<TextDirection>('textDirection', textDirection))
       ..add(EnumProperty<StackFit>('stackFit', stackFit))
-      ..add(EnumProperty<Clip>('clipBehavior', clipBehavior, defaultValue: Clip.hardEdge));
+      ..add(
+        EnumProperty<Clip>(
+          'clipBehavior',
+          clipBehavior,
+          defaultValue: Clip.none,
+        ),
+      );
+  }
+}
+
+extension on Iterable<Rect> {
+  Rect get boundingRect {
+    if (isEmpty) {
+      throw ArgumentError('Cannot compute bounding rect of an empty list');
+    }
+    var left = first.left;
+    var top = first.top;
+    var right = first.right;
+    var bottom = first.bottom;
+    for (final r in skip(1)) {
+      if (r.left < left) left = r.left;
+      if (r.top < top) top = r.top;
+      if (r.right > right) right = r.right;
+      if (r.bottom > bottom) bottom = r.bottom;
+    }
+    return Rect.fromLTRB(left, top, right, bottom);
   }
 }

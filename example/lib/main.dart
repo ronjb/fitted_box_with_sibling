@@ -1,4 +1,4 @@
-import 'package:fitted_box_with_sibling/fitted_box_with_sibling.dart';
+import 'package:fitted_box_with_siblings/fitted_box_with_siblings.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -13,7 +13,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple)),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+      ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -46,15 +48,20 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Container(
         color: Colors.orange,
-        child: FittedBoxWithSibling(
-          rectsForFittedBoxWithSibling: (constraints, boxSize) {
+        child: FittedBoxWithSiblings(
+          computeRects: (constraints, boxSize) {
             if (kDebugMode) {
               print('constraints=$constraints, boxSize=$boxSize');
             }
-            return (
-              boxRect: Rect.fromLTWH(0, 100, constraints.maxWidth, constraints.maxHeight - 100),
-              siblingRect: Rect.fromLTWH(0, 0, constraints.maxWidth, 100),
-            );
+            return [
+              Rect.fromLTWH(
+                0,
+                100,
+                constraints.maxWidth,
+                constraints.maxHeight - 100,
+              ),
+              Rect.fromLTWH(0, 0, constraints.maxWidth, 100),
+            ];
           },
           children: [
             const Text('You have pushed the button this many times:'),
@@ -62,7 +69,10 @@ class _MyHomePageState extends State<MyHomePage> {
               width: double.infinity,
               height: double.infinity,
               color: Colors.yellow,
-              child: Text('$_counter', style: Theme.of(context).textTheme.headlineMedium),
+              child: Text(
+                '$_counter',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
             ),
           ],
         ),
