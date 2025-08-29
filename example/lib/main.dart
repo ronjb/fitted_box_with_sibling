@@ -66,7 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ];
           },
           children: [
-            const Text('You have pushed the button this many times:'),
+            const Text('You have pushed the button\nthis many times:'),
             Container(
               width: double.infinity,
               height: double.infinity,
