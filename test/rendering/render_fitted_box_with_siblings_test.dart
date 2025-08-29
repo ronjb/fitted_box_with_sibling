@@ -6,25 +6,23 @@ import 'rendering_tester.dart';
 void main() {
   TestRenderingFlutterBinding.ensureInitialized();
 
-  test(
-    'RenderFittedBox handles applying paint transform and hit-testing with empty size',
-    () {
-      final fittedBox = RenderFittedBox(
-        child: RenderCustomPaint(painter: TestCallbackPainter(onPaint: () {})),
-      );
+  test('RenderFittedBox handles applying paint transform and hit-testing with '
+      'empty size', () {
+    final fittedBox = RenderFittedBox(
+      child: RenderCustomPaint(painter: TestCallbackPainter(onPaint: () {})),
+    );
 
-      layout(fittedBox, phase: EnginePhase.flushSemantics);
-      final transform = Matrix4.identity();
-      fittedBox.applyPaintTransform(fittedBox.child!, transform);
-      expect(transform, Matrix4.zero());
+    layout(fittedBox, phase: EnginePhase.flushSemantics);
+    final transform = Matrix4.identity();
+    fittedBox.applyPaintTransform(fittedBox.child!, transform);
+    expect(transform, Matrix4.zero());
 
-      final hitTestResult = BoxHitTestResult();
-      expect(
-        fittedBox.hitTestChildren(hitTestResult, position: Offset.zero),
-        isFalse,
-      );
-    },
-  );
+    final hitTestResult = BoxHitTestResult();
+    expect(
+      fittedBox.hitTestChildren(hitTestResult, position: Offset.zero),
+      isFalse,
+    );
+  });
 
   test('RenderFittedBox does not paint with empty sizes', () {
     bool painted;
@@ -41,7 +39,8 @@ void main() {
       );
     }
 
-    // The RenderFittedBox paints if both its size and its child's size are nonempty.
+    // The RenderFittedBox paints if both its size and its child's size are
+    // nonempty.
     painted = false;
     layout(makeFittedBox(const Size(1, 1)), phase: EnginePhase.paint);
     expect(painted, equals(true));
@@ -93,17 +92,15 @@ void main() {
     testFittedBoxWithTransformLayer,
   );
 
-  test(
-    'RenderFittedBox switches between ClipRectLayer and TransformLayer, and reuses them',
-    () {
-      testFittedBoxWithClipRectLayer();
+  test('RenderFittedBox switches between ClipRectLayer and TransformLayer, '
+      'and reuses them', () {
+    testFittedBoxWithClipRectLayer();
 
-      // clip -> transform
-      testFittedBoxWithTransformLayer();
-      // transform -> clip
-      testFittedBoxWithClipRectLayer();
-    },
-  );
+    // clip -> transform
+    testFittedBoxWithTransformLayer();
+    // transform -> clip
+    testFittedBoxWithClipRectLayer();
+  });
 
   test('RenderFittedBox respects clipBehavior', () {
     const viewport = BoxConstraints(maxHeight: 100.0, maxWidth: 100.0);
@@ -207,7 +204,8 @@ void main() {
           );
       }
       {
-        // Make sure that the child is positioned so the stack will consider it as overflowed.
+        // Make sure that the child is positioned so the stack will consider it
+        // as overflowed.
         final parentData = child.parentData! as StackParentData;
         parentData.left = parentData.right = 0;
       }
