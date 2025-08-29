@@ -1,3 +1,4 @@
+import 'package:fitted_box_with_siblings/fitted_box_with_siblings.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -6,15 +7,20 @@ import 'rendering_tester.dart';
 void main() {
   TestRenderingFlutterBinding.ensureInitialized();
 
-  test('RenderFittedBox handles applying paint transform and hit-testing with '
-      'empty size', () {
-    final fittedBox = RenderFittedBox(
-      child: RenderCustomPaint(painter: TestCallbackPainter(onPaint: () {})),
+  test('RenderFittedBoxWithSiblings handles applying paint transform and '
+      'hit-testing with empty size', () {
+    final fittedBox = RenderFittedBoxWithSiblings(
+      computeRects: (constraints, boxSize) => [
+        Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
+      ],
+      children: <RenderBox>[
+        RenderCustomPaint(painter: TestCallbackPainter(onPaint: () {})),
+      ],
     );
 
     layout(fittedBox, phase: EnginePhase.flushSemantics);
     final transform = Matrix4.identity();
-    fittedBox.applyPaintTransform(fittedBox.child!, transform);
+    fittedBox.applyPaintTransform(fittedBox.firstChild!, transform);
     expect(transform, Matrix4.zero());
 
     final hitTestResult = BoxHitTestResult();
@@ -24,33 +30,39 @@ void main() {
     );
   });
 
-  test('RenderFittedBox does not paint with empty sizes', () {
+  test('RenderFittedBoxWithSiblings does not paint with empty sizes', () {
     bool painted;
-    RenderFittedBox makeFittedBox(Size size) {
-      return RenderFittedBox(
-        child: RenderCustomPaint(
-          preferredSize: size,
-          painter: TestCallbackPainter(
-            onPaint: () {
-              painted = true;
-            },
+    RenderFittedBoxWithSiblings makeFittedBox(Size size) {
+      return RenderFittedBoxWithSiblings(
+        computeRects: (constraints, boxSize) => [
+          Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
+        ],
+        children: <RenderBox>[
+          RenderCustomPaint(
+            preferredSize: size,
+            painter: TestCallbackPainter(
+              onPaint: () {
+                painted = true;
+              },
+            ),
           ),
-        ),
+        ],
       );
     }
 
-    // The RenderFittedBox paints if both its size and its child's size are
-    // nonempty.
+    // The RenderFittedBoxWithSiblings paints if both its size and its child's
+    // size are nonempty.
     painted = false;
     layout(makeFittedBox(const Size(1, 1)), phase: EnginePhase.paint);
     expect(painted, equals(true));
 
-    // The RenderFittedBox should not paint if its child is empty-sized.
+    // The RenderFittedBoxWithSiblings should not paint if its child is
+    // empty-sized.
     painted = false;
     layout(makeFittedBox(Size.zero), phase: EnginePhase.paint);
     expect(painted, equals(false));
 
-    // The RenderFittedBox should not paint if it is empty.
+    // The RenderFittedBoxWithSiblings should not paint if it is empty.
     painted = false;
     layout(
       makeFittedBox(const Size(1, 1)),
@@ -62,13 +74,18 @@ void main() {
 
   void testFittedBoxWithClipRectLayer() {
     _testLayerReuse<ClipRectLayer>(
-      RenderFittedBox(
+      RenderFittedBoxWithSiblings(
         fit: BoxFit.cover,
         clipBehavior: Clip.hardEdge,
-        // Inject opacity under the clip to force compositing.
-        child: RenderRepaintBoundary(
-          child: RenderSizedBox(const Size(100.0, 200.0)),
-        ), // size doesn't matter
+        computeRects: (constraints, boxSize) => [
+          Rect.fromLTWH(0, 0, constraints.maxWidth, constraints.maxHeight),
+        ],
+        children: <RenderBox>[
+          // Inject opacity under the clip to force compositing.
+          RenderRepaintBoundary(
+            child: RenderSizedBox(const Size(100.0, 200.0)),
+          ),
+        ], // size doesn't matter
       ),
     );
   }
@@ -347,7 +364,9 @@ void _testLayerReuse<L extends Layer>(RenderBox renderObject) {
     phase: EnginePhase.paint,
     constraints: BoxConstraints.tight(const Size(10, 10)),
   );
-  final Layer? layer = renderObject.debugLayer;
+  final Layer? layer = renderObject is ContainerRenderObjectMixin
+      ? (renderObject as ContainerRenderObjectMixin).firstChild?.debugLayer
+      : renderObject.debugLayer;
   expect(layer, isA<L>());
   expect(layer, isNotNull);
 

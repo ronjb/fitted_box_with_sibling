@@ -113,11 +113,10 @@ class RenderFittedBoxWithSiblings extends RenderBox
   }
 
   Clip get clipBehavior => _clipBehavior;
-  Clip _clipBehavior = Clip.hardEdge;
+  Clip _clipBehavior = Clip.none;
   set clipBehavior(Clip value) {
     if (value != _clipBehavior) {
       _clipBehavior = value;
-      _clearPaintData();
       markNeedsPaint();
       markNeedsSemanticsUpdate();
     }
@@ -259,7 +258,7 @@ class RenderFittedBoxWithSiblings extends RenderBox
   @override
   void performLayout() {
     final constraints = this.constraints;
-    _hasVisualOverflow = false;
+    _hasVisualOverflow ??= false;
 
     final result = _computeSize(
       constraints: constraints,
@@ -422,7 +421,7 @@ class RenderFittedBoxWithSiblings extends RenderBox
     }
   }
 
-  void paintFirstChild(PaintingContext context, Offset offset) {
+  void _paintFirstChild(PaintingContext context, Offset offset) {
     final child = firstChild;
     if (child == null) {
       return;
@@ -440,17 +439,17 @@ class RenderFittedBoxWithSiblings extends RenderBox
         needsCompositing,
         offset,
         _transform!,
-        paintFirstChild,
+        _paintFirstChild,
         oldLayer: layer is TransformLayer ? layer! as TransformLayer : null,
       );
     } else {
-      paintFirstChild(context, offset + childOffset);
+      _paintFirstChild(context, offset + childOffset);
     }
     return null;
   }
 
   @protected
-  void paintStack(PaintingContext context, Offset offset) {
+  void paintFittedBoxWithSiblings(PaintingContext context, Offset offset) {
     var child = firstChild;
     while (child != null) {
       final childParentData = child.parentData! as StackParentData;
@@ -475,13 +474,13 @@ class RenderFittedBoxWithSiblings extends RenderBox
         needsCompositing,
         offset,
         Offset.zero & size,
-        paintStack,
+        paintFittedBoxWithSiblings,
         clipBehavior: clipBehavior,
         oldLayer: _clipRectLayer.layer,
       );
     } else {
       _clipRectLayer.layer = null;
-      paintStack(context, offset);
+      paintFittedBoxWithSiblings(context, offset);
     }
   }
 
