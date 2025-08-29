@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -7,15 +9,12 @@ import 'package:flutter/widgets.dart';
 typedef RectsForFittedBoxWithSiblings =
     List<Rect> Function(BoxConstraints constraints, Size boxSize);
 
-/// Scales and positions the first child (the "box") within itself according
-/// to [fit], similar to [FittedBox]. The positioning of the box and its
-/// siblings is determined by [computeRects], which is given the overall
-/// constraints and the size returned by calling `layout` on the first child
-/// (the "box").
-///
-/// [computeRects] must return the same number of rects as the number of
-/// children. The first is the rect for the box, and the rest are the rects
-/// for the siblings.
+/// A widget which scales and positions the first child (the "box") within
+/// itself according to [fit], similar to [FittedBox]. The positioning of the
+/// box and its siblings is determined by [computeRects], which is given the
+/// overall constraints and the size returned by calling `layout` on the first
+/// child (the "box"), and must return the rectangles for the box and its
+/// siblings.
 ///
 /// See also:
 ///
@@ -23,15 +22,12 @@ typedef RectsForFittedBoxWithSiblings =
 ///   to [fit] and [alignment].
 /// * The [catalog of layout widgets](https://flutter.dev/widgets/layout/).
 class FittedBoxWithSiblings extends MultiChildRenderObjectWidget {
-  /// Creates a widget that scales and positions its first child (the "box")
+  /// Creates A widget which scales and positions the first child (the "box")
   /// within itself according to [fit], similar to [FittedBox]. The positioning
   /// of the box and its siblings is determined by [computeRects], which is
   /// given the overall constraints and the size returned by calling `layout`
-  /// on the first child (the "box").
-  ///
-  /// [computeRects] must return the same number of rects as the number of
-  /// children. The first is the rect for the box, and the rest are the rects
-  /// for the siblings.
+  /// on the first child (the "box"), and must return the rectangles for the
+  /// box and its siblings.
   const FittedBoxWithSiblings({
     super.key,
     this.fit = BoxFit.contain,
@@ -81,7 +77,7 @@ class FittedBoxWithSiblings extends MultiChildRenderObjectWidget {
 
   /// A function which is given the overall constraints and the size returned
   /// by calling `layout` on the first child (the "box"), and must return the
-  /// rects for the fitted box and its siblings.
+  /// rectangles for the box and its siblings.
   final RectsForFittedBoxWithSiblings computeRects;
 
   @override
@@ -200,7 +196,6 @@ class RenderFittedBoxWithSiblings extends RenderBox
     }
   }
 
-  /// How to inscribe the child into the space allocated during layout.
   BoxFit get fit => _fit;
   BoxFit _fit;
   set fit(BoxFit value) {
@@ -282,9 +277,8 @@ class RenderFittedBoxWithSiblings extends RenderBox
     RenderBox? firstChild,
     double Function(RenderBox child) mainChildSizeGetter,
   ) {
-    const extent = 0.0;
-    // TODO(ron): ...
-    /*  var child = firstChild;
+    var extent = 0.0;
+    var child = firstChild;
     while (child != null) {
       final childParentData = child.parentData! as StackParentData;
       if (!childParentData.isPositioned) {
@@ -292,7 +286,7 @@ class RenderFittedBoxWithSiblings extends RenderBox
       }
       assert(child.parentData == childParentData);
       child = childParentData.nextSibling;
-    } */
+    }
     return extent;
   }
 
@@ -512,7 +506,10 @@ class RenderFittedBoxWithSiblings extends RenderBox
       i++;
     }
 
-    final size = rects.isEmpty ? Size.zero : rects.boundingRect.size;
+    final boundingRect = rects.boundingRect;
+    final size = constraints.constrain(
+      Size(boundingRect.right, boundingRect.bottom),
+    );
     assert(size.isFinite);
     return (size: size, rects: rects);
   }
