@@ -53,6 +53,7 @@ class _MyHomePageState extends State<MyHomePage> {
             if (kDebugMode) {
               print('constraints=$constraints, boxSize=$boxSize');
             }
+            final centerX = constraints.maxWidth / 2;
             return [
               Rect.fromLTWH(
                 0,
@@ -60,7 +61,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 constraints.maxWidth,
                 constraints.maxHeight - 100,
               ),
-              Rect.fromLTWH(0, 0, constraints.maxWidth, 100),
+              Rect.fromLTWH(0, 0, centerX, 100),
+              Rect.fromLTWH(centerX, 0, centerX, 100),
             ];
           },
           children: [
@@ -68,9 +70,20 @@ class _MyHomePageState extends State<MyHomePage> {
             Container(
               width: double.infinity,
               height: double.infinity,
+              alignment: Alignment.center,
               color: Colors.yellow,
               child: Text(
                 '$_counter',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ),
+            Container(
+              width: double.infinity,
+              height: double.infinity,
+              alignment: Alignment.center,
+              color: Colors.blue,
+              child: Text(
+                'Next: ${_counter + 1}',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
             ),
