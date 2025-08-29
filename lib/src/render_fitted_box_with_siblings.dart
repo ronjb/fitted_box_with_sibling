@@ -465,6 +465,9 @@ class RenderFittedBoxWithSiblings extends RenderBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    if (firstChild == null || size.isEmpty || firstChild!.size.isEmpty) {
+      return;
+    }
     _updatePaintData();
 
     if (clipBehavior != Clip.none && _hasVisualOverflow == true) {
@@ -484,8 +487,67 @@ class RenderFittedBoxWithSiblings extends RenderBox
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    _updatePaintData();
-    return defaultHitTestChildren(result, position: position);
+    if (firstChild == null || size.isEmpty || firstChild!.size.isEmpty) {
+      return false;
+    }
+
+    var child = lastChild;
+    while (child != null) {
+      final childParentData = child.parentData! as StackParentData;
+      final bool isHit;
+
+      if (identical(child, firstChild)) {
+        _updatePaintData();
+        isHit = result.addWithPaintTransform(
+          transform: _transform,
+          position: position,
+          hitTest: (result, position) =>
+              child!.hitTest(result, position: position),
+        );
+      } else {
+        // The x, y parameters have the top left of the box as the origin.
+        isHit = result.addWithPaintOffset(
+          offset: childParentData.offset,
+          position: position,
+          hitTest: (result, transformed) {
+            assert(transformed == position - childParentData.offset);
+            return child!.hitTest(result, position: transformed);
+          },
+        );
+      }
+
+      if (isHit) {
+        return true;
+      }
+
+      child = childParentData.previousSibling;
+    }
+    return false;
+  }
+
+  @override
+  bool paintsChild(RenderBox child) {
+    assert(child.parent == this);
+    if (size.isEmpty) return false;
+    if (identical(child, firstChild)) {
+      return !child.size.isEmpty;
+    } else {
+      return super.paintsChild(child);
+    }
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    if (identical(child, firstChild)) {
+      if (!paintsChild(child)) {
+        transform.setZero();
+      } else {
+        _updatePaintData();
+        transform.multiply(_transform!);
+      }
+    } else {
+      return super.applyPaintTransform(child, transform);
+    }
   }
 
   final LayerHandle<ClipRectLayer> _clipRectLayer =
