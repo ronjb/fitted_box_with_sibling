@@ -1,10 +1,12 @@
+/// RenderFittedBoxWithSiblings
+/// @docImport 'fitted_box_with_siblings.dart';
+library;
+
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-
-import 'fitted_box_with_siblings.dart';
 
 /// Signature for a function that given the [constraints] and [boxSize],
 /// returns the rects for the fitted box and its siblings.
@@ -70,8 +72,8 @@ class RenderFittedBoxWithSiblings extends RenderBox
     }
   }
 
-  Alignment get _resolvedAlignment =>
-      _resolvedAlignmentCache ??= alignment.resolve(textDirection);
+  Alignment get _resolvedAlignment => _resolvedAlignmentCache ??= alignment
+      .resolve(textDirection ?? TextDirection.ltr);
   Alignment? _resolvedAlignmentCache;
 
   void _markNeedResolution() {
