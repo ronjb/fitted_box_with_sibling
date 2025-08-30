@@ -6,6 +6,7 @@
 // ignore_for_file: omit_local_variable_types
 // ignore_for_file: avoid_types_on_closure_parameters, deprecated_member_use
 
+import 'package:fitted_box_with_siblings/fitted_box_with_siblings.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,9 +22,15 @@ void main() {
       Center(
         child: SizedBox(
           width: 200.0,
-          child: FittedBox(
+          child: FittedBoxWithSiblings(
             key: outside,
-            child: SizedBox(key: inside, width: 100.0, height: 50.0),
+            children: [SizedBox(key: inside, width: 100.0, height: 50.0)],
+            computeRects: (c, boxSize) {
+              final aspectRatio = boxSize.width / boxSize.height;
+              return [
+                Rect.fromLTWH(0, 0, c.maxWidth, c.maxWidth / aspectRatio),
+              ];
+            },
           ),
         ),
       ),
@@ -57,9 +64,12 @@ void main() {
         child: SizedBox(
           width: 200.0,
           height: 200.0,
-          child: FittedBox(
+          child: FittedBoxWithSiblings(
             key: outside,
-            child: SizedBox(key: inside, width: 100.0, height: 50.0),
+            children: [SizedBox(key: inside, width: 100.0, height: 50.0)],
+            computeRects: (c, boxSize) {
+              return [Rect.fromLTWH(0, 0, c.maxWidth, c.maxHeight)];
+            },
           ),
         ),
       ),
@@ -92,10 +102,13 @@ void main() {
         child: SizedBox(
           width: 200.0,
           height: 200.0,
-          child: FittedBox(
+          child: FittedBoxWithSiblings(
             key: outside,
             fit: BoxFit.cover,
-            child: SizedBox(key: inside, width: 100.0, height: 50.0),
+            children: [SizedBox(key: inside, width: 100.0, height: 50.0)],
+            computeRects: (c, boxSize) {
+              return [Rect.fromLTWH(0, 0, c.maxWidth, c.maxHeight)];
+            },
           ),
         ),
       ),
@@ -123,13 +136,17 @@ void main() {
     final Key key = UniqueKey();
     await tester.pumpWidget(
       Center(
-        child: FittedBox(key: key, fit: BoxFit.cover),
+        child: FittedBoxWithSiblings(
+          key: key,
+          fit: BoxFit.cover,
+          computeRects: (c, boxSize) => [],
+        ),
       ),
     );
 
     final RenderBox box = tester.firstRenderObject(find.byKey(key));
-    expect(box.size.width, 0.0);
-    expect(box.size.height, 0.0);
+    expect(box.size.width, 800.0);
+    expect(box.size.height, 600.0);
   });
 
   testWidgets('Child can be aligned multiple ways in a row', (

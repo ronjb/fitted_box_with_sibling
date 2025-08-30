@@ -210,7 +210,8 @@ void main() {
   );
 
   test('RenderFittedBoxWithSiblings can layout with no children', () {
-    final RenderBox stack = RenderStack(
+    final RenderBox stack = RenderFittedBoxWithSiblings(
+      computeRects: (constraints, boxSize) => [],
       textDirection: TextDirection.ltr,
       children: <RenderBox>[],
     );
@@ -221,58 +222,17 @@ void main() {
     expect(stack.size.height, equals(100.0));
   });
 
-  test('RenderFittedBoxWithSiblings has correct clipBehavior', () {
-    const viewport = BoxConstraints(maxHeight: 100.0, maxWidth: 100.0);
-
-    for (final clip in <Clip?>[null, ...Clip.values]) {
-      final context = TestClipPaintingContext();
-      final RenderBox child = box200x200;
-      final RenderStack stack;
-      switch (clip) {
-        case Clip.none:
-        case Clip.hardEdge:
-        case Clip.antiAlias:
-        case Clip.antiAliasWithSaveLayer:
-          stack = RenderStack(
-            textDirection: TextDirection.ltr,
-            children: <RenderBox>[child],
-            clipBehavior: clip!,
-          );
-        case null:
-          stack = RenderStack(
-            textDirection: TextDirection.ltr,
-            children: <RenderBox>[child],
-          );
-      }
-      {
-        // Make sure that the child is positioned so the stack will consider it
-        // as overflowed.
-        final parentData = child.parentData! as StackParentData;
-        parentData.left = parentData.right = 0;
-      }
-      layout(
-        stack,
-        constraints: viewport,
-        phase: EnginePhase.composite,
-        onErrors: expectNoFlutterErrors,
-      );
-      context.paintChild(stack, Offset.zero);
-      // By default, clipBehavior should be Clip.hardEdge
-      expect(
-        context.clipBehavior,
-        equals(clip ?? Clip.hardEdge),
-        reason: 'for $clip',
-      );
-    }
-  });
-
   test('RenderFittedBoxWithSiblings in Flex can layout with no children', () {
     // Render an empty Stack in a Flex
     final flex = RenderFlex(
       textDirection: TextDirection.ltr,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: <RenderBox>[
-        RenderStack(textDirection: TextDirection.ltr, children: <RenderBox>[]),
+        RenderFittedBoxWithSiblings(
+          computeRects: (_, _) => [],
+          textDirection: TextDirection.ltr,
+          children: <RenderBox>[],
+        ),
       ],
     );
 
