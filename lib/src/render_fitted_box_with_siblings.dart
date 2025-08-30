@@ -355,10 +355,7 @@ class RenderFittedBoxWithSiblings extends RenderBox
         }
       } else {
         final rectSize = i < rects.length ? rects[i].size : Size.zero;
-        final siblingConstraints = stackFit == StackFit.loose
-            ? BoxConstraints.loose(rectSize)
-            : BoxConstraints.tight(rectSize);
-        layoutChild(child, siblingConstraints);
+        layoutChild(child, BoxConstraints.tight(rectSize));
       }
 
       child = childParentData.nextSibling;
